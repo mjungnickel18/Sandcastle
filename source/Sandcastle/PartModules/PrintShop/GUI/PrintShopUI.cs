@@ -99,6 +99,7 @@ namespace Sandcastle.PrintShop
         #region Housekeeping
         List<AvailablePart> filteredParts;
         Dictionary<string, BuildItem> itemCache;
+        string searchFilter = string.Empty;
         AvailablePart previewPart;
         List<PartVariant> partVariants = new List<PartVariant>();
         Texture2D previewPartImage;
@@ -177,6 +178,20 @@ namespace Sandcastle.PrintShop
             GUILayout.BeginVertical();
 
             GUILayout.Label("<color=white><b>" + categoryName + "</b></color>");
+
+            // Search field at the top
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("<color=white>Search:</color>", GUILayout.Width(60));
+
+            string newSearchFilter = GUILayout.TextField(searchFilter, GUILayout.Height(20), GUILayout.ExpandWidth(true));
+
+            if (newSearchFilter != searchFilter)
+            {
+                searchFilter = newSearchFilter;
+                updateCategoryParts();
+            }
+
+            GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
 
@@ -502,7 +517,10 @@ namespace Sandcastle.PrintShop
         {
             GUI.backgroundColor = currentCategory == categoryId ? selectedColor : backgroundColor;
             if (GUILayout.Button(iconSet[categoryId], categoryButtonDimensions))
+            {
                 selectedCategory = categoryId;
+                searchFilter = string.Empty; // Clear search when clicking a category
+            }
             if (isMouseOver())
             {
                 categoryName = getCategoryName(categoryId);
@@ -656,12 +674,33 @@ namespace Sandcastle.PrintShop
             string tags;
             string partCategory;
             string title;
+            bool hasSearchText = !string.IsNullOrEmpty(searchFilter);
+            string searchFilterLower = hasSearchText ? searchFilter.ToLower() : string.Empty;
+
             for (int index = 0; index < count; index++)
             {
                 title = partsList[index].title;
                 partCategory = partsList[index].category.ToString();
                 tags = partsList[index].tags;
-                if (partCategory == currentCategory || (tags.Contains(cckTag) && !string.IsNullOrEmpty(cckTag)))
+
+                bool shouldShow = false;
+
+                // If search field has text, show matching parts across all categories
+                // Otherwise, show parts from the current category
+                if (hasSearchText)
+                {
+                    bool matchesSearch = title.ToLower().Contains(searchFilterLower) ||
+                        partsList[index].name.ToLower().Contains(searchFilterLower) ||
+                        tags.ToLower().Contains(searchFilterLower);
+                    shouldShow = matchesSearch;
+                }
+                else
+                {
+                    bool matchesCategory = partCategory == currentCategory || (tags.Contains(cckTag) && !string.IsNullOrEmpty(cckTag));
+                    shouldShow = matchesCategory;
+                }
+
+                if (shouldShow)
                 {
                     availablePart = partsList[index];
                     filteredParts.Add(availablePart);
